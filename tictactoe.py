@@ -6,30 +6,24 @@ class Player:
     def __init__(self, piece, hardcoded = False):
         self.designator = piece
         if hardcoded:
-            self.weight0 = 1
+            self.weight0 = 0.1
             self.weight1 = 0.1
-            self.weight2 = 0.7
-            self.weight3 = 0.3
-            self.weight4 = 1
-            self.weight5 = 0.5
-            self.c = 0.1
+            self.weight2 = 0.1
+            self.weight3 = 0.1
+            self.c = 0.01
         else:
-            self.weight0 = random.rand()
-            self.weight1 = random.rand()
-            self.weight2 = random.rand()
-            self.weight3 = random.rand()
-            self.weight4 = random.rand()
-            self.weight5 = random.rand()
-            self.c = 0.1
+            self.weight0 = 0.5
+            self.weight1 = 0.5
+            self.weight2 = 0.5
+            self.weight3 = 0.5
+            self.c = 0.001
 
     def calculateVHat(self, board):
-        #our funciton is in the form w0 + w1*f1 + w2*f2 + w3*f3 + w4*f4 + w5*f5
-        #where f1 -> number of empty spaces on the board
-        #where f2 -> number of Xes on the board
-        #where f3 -> number of Oes on the board
-        #where f4 -> number of double Xes on the board
-        #where f5 -> number of double Oes on the board
-        vHat = self.weight0 + (self.weight1 * board.numEmptyPositions) + (self.weight2 * board.numXes) + (self.weight3 * board.numOes) + (self.weight4 * board.numDoubleXes) + (self.weight5 * board.numDoubleOes)
+        #our funciton is in the form w0 + w1*f1 + w2*f2
+        #where f1 -> number of double Xes on the board
+        #where f2 -> number of double Oes on the board
+        #where f3 -> taking the center position
+        vHat = self.weight0 + (self.weight1 * board.numDoubleXes) + (self.weight2 * board.numDoubleOes) + (self.weight3 * board.inMiddle)
         return vHat
 
     def updateWeights(self, board):
@@ -45,17 +39,19 @@ class Player:
         hasWon = board.makeMove(row, col, self.designator)
         if hasWon == self.designator:
             #Show on the terminal who won the game if someone wins the game during this move
-            print(self.designator + " has won the game!")
+            #print(self.designator + " has won the game!")
+            pass
         vHatNextMove = self.calculateVHat(board)
         #calculate the error using the formula given in class
         error = vHatNextMove - vHatCurrentBoard
+        #print(error)
 
         #now we can move on to updating the weights for our player
-        self.weight1 = self.weight1 + (self.c * board.numEmptyPositions * error)
-        self.weight2 = self.weight2 + (self.c * board.numXes * error)
-        self.weight3 = self.weight3 + (self.c * board.numOes * error)
-        self.weight4 = self.weight4 + (self.c * board.numDoubleXes * error)
-        self.weight5 = self.weight5 + (self.c * board.numDoubleOes * error)
+        self.weight1 = self.weight1 + (self.c * board.numDoubleXes * error)
+        self.weight2 = self.weight2 + (self.c * board.numDoubleOes * error)
+        self.weight3 = self.weight3 + (self.c * board.inMiddle * error)
+        #return the hasWon variable to the top level for counting number of won games
+        return hasWon
 
     def determineNextMove(self, board):
         #We need to go through each of the successors and determine which one maximises or
@@ -79,12 +75,12 @@ class Player:
                 #save the index
                 moveIndexMin = index
             index += 1
-
         #if we are X then we want the max and if we are O then we want the min
         if self.designator == "X":
             return moveIndexMax
         else:
             return moveIndexMin
+        #return moveIndexMax
 
 
 class Board:
@@ -95,6 +91,7 @@ class Board:
         self.numOes = 0
         self.numDoubleXes = 0
         self.numDoubleOes = 0
+        self.inMiddle = -1
 
     def getEmptyPositions(self):
         emptyPositionsArray = []
@@ -182,10 +179,14 @@ class Board:
             self.positions[row][column] = "X"
             self.numXes += 1
             self.numDoubleXes = self.determineDouble("X")
+            if row == 1 and column == 1:
+                self.inMiddle = 0
         else:
             self.positions[row][column] = "O"
             self.numOes += 1
             self.numDoubleOes = self.determineDouble("O")
+            if row == 1 and column == 1:
+                self.inMiddle = 1
         #we have made a move so decrease the number of empty positions
         self.numEmptyPositions -= 1
         #check to see if anyone has won and return that value if one exists
@@ -214,7 +215,7 @@ class Board:
         diag2 = set([self.positions[0][2], self.positions[1][1], self.positions[2][0]])
         if (len(diag1) == 1 or len(diag2) == 1) and self.positions[1][1] != " ":
             return self.positions[1][1]
-        #no one has one
+        #no one has won
         return "N"
 
     def printBoard(self):
